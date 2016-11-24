@@ -81,34 +81,48 @@ public class Client extends UnicastRemoteObject implements ClientInterface {
         
         Scanner login = new Scanner(System.in);
         
-        System.out.print("Enter the username: ");
-        username = login.nextLine();
-        System.out.print("Enter the password: ");
-        password = login.nextLine();
+//        System.out.print("Enter the username: ");
+//        username = login.next();
+//        //login.nextLine();
+//        System.out.print("Enter the password: ");
+//        password = login.next();
         
-            
         
-        //while(login.hasNextLine()) {
+        
+        while(true) {
            
+            System.out.print("Enter the username: ");
+            username = login.nextLine();
+            //login.nextLine();
+            System.out.print("Enter the password: ");
+            password = login.nextLine();
 
            if (username.length() == 0 || password.length() == 0) {
                System.out.println("Empty fields detected! Please fill up all fields");
-               System.out.print("Enter the username: ");
-               username = login.nextLine();
-               System.out.print("Enter the password: ");
-               password = login.nextLine();
+//               System.out.print("Enter the username: ");
+//               username = login.next();
+//               //login.nextLine();
+//               System.out.print("Enter the password: ");
+//               password = login.next();
                
             } else {
                if(validateLogin(username, password)) {
                    System.out.println("Correct");
-                   //break;
+                   break;
                }
                else{
-                   System.out.println("Wrong credentials");
+                   System.out.println("Invalid username and/or password.");
+                   
+//                   System.out.print("Enter the username: ");
+//                   username = login.next();
+//                   //login.nextLine();
+//                   System.out.print("Enter the password: ");
+//                   password = login.next();
+                   //break;
                }
             }
  
-        //} 
+        } 
         //break;
         //System.out.println("User: " + username + " has password: " + password);
     }
