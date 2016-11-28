@@ -34,6 +34,9 @@ public class Client extends UnicastRemoteObject implements ClientInterface {
 
     private static Bank bankObj;
     private static MarketplaceInterface marketObj;
+    private static Connection con;
+    private static ResultSet rs;
+    private static Statement stmt;
 
     private String clientName;
     private Account bankAccount;
@@ -72,70 +75,55 @@ public class Client extends UnicastRemoteObject implements ClientInterface {
         this.bankAccount = bankAccount;
     }
 
-    
-    
-    public static void login() {
-        String username;
-        String password;
-        
-        
-        Scanner login = new Scanner(System.in);
-        
-//        System.out.print("Enter the username: ");
-//        username = login.next();
-//        //login.nextLine();
-//        System.out.print("Enter the password: ");
-//        password = login.next();
-        
-        
-        
-        while(true) {
-           
-            System.out.print("Enter the username: ");
-            username = login.nextLine();
-            //login.nextLine();
-            System.out.print("Enter the password: ");
-            password = login.nextLine();
-
-           if (username.length() == 0 || password.length() == 0) {
-               System.out.println("Empty fields detected! Please fill up all fields");
-//               System.out.print("Enter the username: ");
-//               username = login.next();
-//               //login.nextLine();
-//               System.out.print("Enter the password: ");
-//               password = login.next();
-               
-            } else {
-               if(validateLogin(username, password)) {
-                   System.out.println("Correct");
-                   break;
-               }
-               else{
-                   System.out.println("Invalid username and/or password.");
-                   
-//                   System.out.print("Enter the username: ");
-//                   username = login.next();
-//                   //login.nextLine();
-//                   System.out.print("Enter the password: ");
-//                   password = login.next();
-                   //break;
-               }
-            }
- 
-        } 
-        //break;
-        //System.out.println("User: " + username + " has password: " + password);
-    }
-    public static boolean validateLogin(String user, String pass) {
+    public static Connection doConnect() {
         try {
             String host = "jdbc:derby://localhost:1527/homework3";
             String userDB = "test";
             String passDB = "java";
-            Connection con = DriverManager.getConnection(host, userDB, passDB);
-            PreparedStatement pst = con.prepareStatement("Select * from login where username=? and password=?");
+            con = DriverManager.getConnection(host, userDB, passDB);
+            stmt = con.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
+            String sql = "SELECT * FROM Login";
+            rs = stmt.executeQuery(sql);
+
+        } catch (SQLException err) {
+            System.out.println(err.getMessage());
+        }
+        return con;
+    }
+
+    public static void login(Connection connection) {
+        String username;
+        String password;
+
+        Scanner login = new Scanner(System.in);
+        while (true) {
+
+            System.out.print("Enter the username: ");
+            username = login.nextLine();
+            System.out.print("Enter the password: ");
+            password = login.nextLine();
+
+            if (username.length() == 0 || password.length() == 0) {
+                System.out.println("Empty fields detected! Please fill up all fields");
+            } else if (validateLogin(username, password, con)) {
+                System.out.println("Correct!");
+                break;
+            } else {
+                System.out.println("Invalid username and/or password.");
+            }
+
+        }
+        //break;
+        //System.out.println("User: " + username + " has password: " + password);
+    }
+
+    public static boolean validateLogin(String user, String pass, Connection connection) {
+        try {
+
+            PreparedStatement pst = connection.prepareStatement("Select * from login where username=? and password=?");
             pst.setString(1, user);
             pst.setString(2, pass);
-            ResultSet rs = pst.executeQuery();
+            rs = pst.executeQuery();
             if (rs.next()) {
                 return true;
             } else {
@@ -146,7 +134,56 @@ public class Client extends UnicastRemoteObject implements ClientInterface {
             return false;
         }
     }
-    
+
+    public static void newRegister() {
+        String newUsername;
+        String newPassword;
+
+        Scanner register = new Scanner(System.in);
+        while (true) {
+            System.out.print("Create a new username: ");
+            newUsername = register.nextLine();
+            System.out.print("Create a new password: (minimum 8 characters) ");
+            newPassword = register.nextLine();
+            if (newUsername.length() == 0 || newPassword.length() == 0) { // If the user register blank stuff
+                System.out.println("Empty fields detected! Please fill up all fields");
+            } else if (newPassword.length() < 8) { // If the user doesnt create a 8 char long password
+                System.out.println("Your password must be at least 8 characters long.");
+            } else if (validateLogin(newUsername, newPassword, con)) {
+                System.out.println("This user and/or password already exists!");
+            } else {
+                saveNewUser(newUsername, newPassword, con);
+
+                break;
+            }
+        }
+    }
+
+    public static void saveNewUser(String newUser, String newPass, Connection connection) {
+        try {
+            stmt = con.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
+            String sql = "SELECT * FROM Login";
+            rs = stmt.executeQuery(sql);
+            rs.moveToInsertRow();
+
+            rs.updateString("Username", newUser);
+            rs.updateString("Password", newPass);
+
+            rs.insertRow();
+
+            stmt.close();
+            rs.close();
+
+            stmt = con.createStatement(ResultSet.TYPE_SCROLL_INSENSITIVE, ResultSet.CONCUR_UPDATABLE);
+            sql = "SELECT * FROM Login";
+            rs = stmt.executeQuery(sql);
+
+            System.out.print("New user created!");
+        } catch (SQLException err) {
+            System.out.println(err.getMessage());
+        }
+    }
+
     public static void userInput() throws RejectedException, IOException {
         ArrayList<Client> clients = new ArrayList<Client>();
 
@@ -155,6 +192,14 @@ public class Client extends UnicastRemoteObject implements ClientInterface {
         String clientStr;
         Client client = null;
 
+        System.out.println("\nWelcome to the marketplace! Already registered? (y or n)");
+        String choice = in.nextLine();
+        if (choice.equals("y")) {
+            login(con);
+        } else {
+            // New registration form:
+            newRegister();
+        }
         while (option < 7) {
             System.out.println("\nWelcome to the marketplace! Choose an option:\n(1) Register\n(2) Unregister\n(3) Sell an item\n"
                     + "(4) Buy an item\n(5) Wish an item\n(6) See all products\n(7) Close");
@@ -241,10 +286,13 @@ public class Client extends UnicastRemoteObject implements ClientInterface {
                     }
                     System.out.println(availableStr.substring(0, availableStr.length() - 2));
                     break;
+//                case 8:
+//                    login(con);
                 default:
                     break;
             }
         }
+
     }
 
     private static String clientAsStrings(ArrayList<Client> clients) {
@@ -268,23 +316,10 @@ public class Client extends UnicastRemoteObject implements ClientInterface {
             System.out.println("The runtime failed: " + e.getMessage());
             System.exit(0);
         }
-       try {
-//
-//            String host = "jdbc:derby://localhost:1527/homework3";
-//            String user = "test";
-//            String pass = "java";
-//
-//            Connection con = DriverManager.getConnection(host, user, pass);
-////            Statement stmt = con.createStatement();
-////            String SQL = "SELECT * FROM LOGIN";
-////            ResultSet rs = stmt.executeQuery(SQL);
-////            
-//        } catch (SQLException err) {
-//            System.out.println(err.getMessage());
-//        }
-       
-            
-            login();
+
+        try {
+
+            con = doConnect();
             userInput();
         } catch (RejectedException | IOException e) {
             System.out.println("userInput  " + e);
